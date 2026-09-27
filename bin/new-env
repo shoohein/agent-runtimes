@@ -1,0 +1,58 @@
+#!/usr/bin/env sh
+set -eu
+unset CDPATH
+
+usage() {
+  cat << 'USAGE' >&2
+usage: new-env <env>
+
+<env>: <forge>/<org>/<repo>  (e.g. gh/me/nvim-config)
+USAGE
+}
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
+REPO_ROOT="$(dirname -- "$SCRIPT_DIR")"
+
+ENV_NAME="${1:-}"
+if [ -z "$ENV_NAME" ]; then
+  echo "error: <env> is required" >&2
+  usage
+  exit 1
+fi
+
+case "$ENV_NAME" in
+  */*/*/*)
+    echo "error: invalid <env> '$ENV_NAME' (want <forge>/<org>/<repo>)" >&2
+    exit 1
+    ;;
+  */*/*) ;;
+  *)
+    echo "error: invalid <env> '$ENV_NAME' (want <forge>/<org>/<repo>)" >&2
+    usage
+    exit 1
+    ;;
+esac
+
+case "$ENV_NAME" in
+  *[!A-Za-z0-9_./-]*)
+    echo "error: invalid <env> '$ENV_NAME' (allowed: [A-Za-z0-9_.-/])" >&2
+    exit 1
+    ;;
+esac
+
+ENV_DIR="$REPO_ROOT/runtimes/$ENV_NAME"
+if [ -d "$ENV_DIR/config" ]; then
+  echo "already registered: $ENV_NAME" >&2
+else
+  mkdir -p "$ENV_DIR/config"
+  touch "$ENV_DIR/config/.gitkeep"
+  echo "registered: $ENV_NAME" >&2
+fi
+
+cat >&2 << EOF
+next:
+  1. checkout at \$HOME/$ENV_NAME (required to launch)
+  2. optional: $ENV_DIR/config/settings.json for per-env overrides
+  3. optional: $ENV_DIR/env/compose.override.yaml for extra services
+  4. bin/run-agent --list, then bin/run-agent $ENV_NAME
+EOF
