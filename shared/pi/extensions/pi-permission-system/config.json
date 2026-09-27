@@ -1,0 +1,31 @@
+{
+  "permission": {
+    "*": "allow",
+    "path": {
+      "*": "allow",
+      "*auth.json": "deny",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*.env.example": "allow"
+    },
+    "path_write": {
+      "~/.pi/agent/extensions/*": "ask",
+      "~/.pi/agent/settings.json": "ask",
+      "~/.pi/agent/skills/*": "ask",
+      "/ws/*/.pi/*": "ask"
+    },
+    "bash": {
+      "*": "allow",
+      "rm -rf *": "deny",
+      "git push *": "ask",
+      "sudo *": "ask"
+    },
+    "external_directory": {
+      "*": "ask",
+      "/dev/null": "allow",
+      "~/.pi/agent/*": "allow",
+      "/tmp/*": "allow",
+      "/usr/lib/node_modules/@earendil-works/pi-coding-agent/*": "allow"
+    }
+  }
+}
