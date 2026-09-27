@@ -21,3 +21,5 @@ RUN uv tool install pre-commit==4.6.2 \
 USER agent
 # Seed the npm volume mountpoint as agent (avoids a root-owned dir)
 RUN mkdir -p /home/agent/.pi/agent/npm
+# Seed cache dirs as agent (pre-commit hook envs + go build cache need write access)
+RUN mkdir -p /home/agent/.cache/pre-commit /home/agent/.cache/go-build
