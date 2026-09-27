@@ -1,0 +1,68 @@
+services:
+  agent:
+    image: agents/${ENV_NAME}
+    build:
+      context: .
+    working_dir: /ws/${ENV_NAME}
+    environment:
+      TZ: ${TZ:-Asia/Tokyo}
+      SSH_AUTH_SOCK: /ssh-agent
+      GIT_AUTHOR_NAME: ${GIT_AUTHOR_NAME:-}
+      GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL:-}
+      GIT_COMMITTER_NAME: ${GIT_COMMITTER_NAME:-}
+      GIT_COMMITTER_EMAIL: ${GIT_COMMITTER_EMAIL:-}
+    command: sleep infinity
+    init: true
+    volumes:
+      # repo
+      - type: bind
+        source: ${REPO_DIR}/${ENV_NAME}
+        target: /ws/${ENV_NAME}
+      # NOTE: nestedのためrepo直後を維持（親より先に書くと隠れる）
+      - type: bind
+        source: ${REPO_ROOT}/runtimes/${ENV_NAME}/config
+        target: /ws/${ENV_NAME}/.pi
+      - type: bind
+        source: ${REPO_ROOT}/skills
+        target: /home/agent/.pi/agent/skills
+      - type: bind
+        source: ${REPO_ROOT}/shared/pi/extensions
+        target: /home/agent/.pi/agent/extensions
+      - type: bind
+        source: ${REPO_ROOT}/shared/pi/settings.json
+        target: /home/agent/.pi/agent/settings.json
+      - type: bind
+        source: ${REPO_ROOT}/shared/pi/keybindings.json
+        target: /home/agent/.pi/agent/keybindings.json
+      # NOTE: instructions/ は外部clone（agent-instructions）。run-agent が無ければ自動clone
+      - type: bind
+        source: ${REPO_ROOT}/instructions
+        target: /opt/instructions
+        read_only: true
+      # host
+      # NOTE: host piとは別物。agent-runtimes専用（trust.jsonと同居）
+      - type: bind
+        source: ${HOME}/.agent-runtimes/auth.json
+        target: /home/agent/.pi/agent/auth.json
+      - type: bind
+        source: ${HOME}/.agent-runtimes/trust.json
+        target: /home/agent/.pi/agent/trust.json
+      - type: bind
+        source: ${HOME}/.agent-runtimes/sessions
+        target: /home/agent/.pi/agent/sessions
+      # NOTE: pre-commit hook環境の永続化（無ければ再起動たびに再取得）
+      - type: bind
+        source: ${HOME}/.agent-runtimes/pre-commit-cache
+        target: /home/agent/.cache/pre-commit
+      - type: bind
+        source: ${SSH_AUTH_SOCK:-/dev/null}
+        target: /ssh-agent
+        read_only: true
+      # shared infra
+      - type: volume
+        source: agent-npm
+        target: /home/agent/.pi/agent/npm
+volumes:
+  agent-npm:
+    name: agent-npm
+    external: true
