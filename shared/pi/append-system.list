@@ -1,0 +1,4 @@
+# 追加system prompt（順序＝結合順序）。instructions/ チェックアウトからの相対パス。`#`・空行は無視。
+# 用法：配りたいmdを1行ずつ追加（JSONではなく行指向なのはhostのshにparserの保証がないため）。
+instructions/documentation-policy.md
+instructions/critical-thinking.md

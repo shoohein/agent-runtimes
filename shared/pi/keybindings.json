@@ -1,0 +1,4 @@
+{
+  "tui.editor.undo": "ctrl+u",
+  "tui.editor.deleteToLineStart": []
+}

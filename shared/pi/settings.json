@@ -1,0 +1,12 @@
+{
+  "packages": [
+    "npm:pi-web-access",
+    "npm:@gotgenes/pi-permission-system",
+    "npm:pi-lens",
+    "npm:pi-subagents"
+  ],
+  "lastChangelogVersion": "0.87.1",
+  "theme": "dark",
+  "defaultProvider": "opencode-go",
+  "defaultModel": "muse-spark-1.3-contributor"
+}
