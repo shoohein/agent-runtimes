@@ -19,7 +19,7 @@ repos:
       - id: shellcheck
         types: [shell]
   - repo: https://github.com/maxwinterstein/shfmt-py
-    rev: v4.1.0
+    rev: v4.2.0
     hooks:
       - id: shfmt
         args: [-i=2, -ci, -sr, -ln=posix, -w]
