@@ -11,10 +11,10 @@
 
 ## 利用者向け操作
 
-| やりたいこと | 方法 |
-| --- | --- |
-| 起動・停止 | `bin/run-agent` のみ使う。compose直叩き不可 |
-| 新env登録 | `bin/new-env <forge>/<org>/<repo>` |
+| やりたいこと | 方法                                        |
+| ------------ | ------------------------------------------- |
+| 起動・停止   | `bin/run-agent` のみ使う。compose直叩き不可 |
+| 新env登録    | `bin/new-env <forge>/<org>/<repo>`          |
 
 ## compose編集時の約束
 
