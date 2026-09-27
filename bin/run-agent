@@ -1,0 +1,270 @@
+#!/usr/bin/env sh
+set -eu
+unset CDPATH
+
+usage() {
+  cat << 'USAGE' >&2
+usage: run-agent [options] <env> [pi_args...]
+       run-agent down <env>      # 掃除用（通常は終了時に自動停止）
+       run-agent --list | ls
+       run-agent --help | -h
+
+options:
+  --build       up に --build を付与 (default: なし)
+
+<env>: <forge>/<org>/<repo>  (e.g. gh/me/agent-runtimes)
+USAGE
+}
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
+REPO_ROOT="$(dirname -- "$SCRIPT_DIR")"
+export REPO_ROOT
+
+list_envs() {
+  for _d in "$REPO_ROOT"/runtimes/*/*/*/; do
+    [ -d "$_d" ] || continue
+    _d="${_d#"$REPO_ROOT"/runtimes/}"
+    echo "${_d%/}"
+  done | sort
+}
+
+# --- parse options ---
+BUILD_FLAG=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --build)
+      BUILD_FLAG="--build"
+      shift
+      ;;
+    --help | -h)
+      usage
+      exit 0
+      ;;
+    --list | ls)
+      list_envs
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    --*)
+      echo "error: unknown option '$1'" >&2
+      usage
+      exit 1
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+# --- parse op ---
+if [ "${1:-}" = "down" ]; then
+  OP=down
+  ENV_NAME="${2:-}"
+  shift $#
+else
+  OP=up
+  ENV_NAME="${1:-}"
+  [ $# -gt 0 ] && shift
+fi
+
+if [ -z "$ENV_NAME" ]; then
+  echo "error: <env> is required" >&2
+  usage
+  exit 1
+fi
+
+export ENV_NAME
+
+# --- environment (all overridable from the outside) ---
+export REPO_DIR="${REPO_DIR:-$HOME}"
+export GIT_AUTHOR_NAME="${GIT_AUTHOR_NAME:-$(git config --global user.name 2> /dev/null || true)}"
+export GIT_AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-$(git config --global user.email 2> /dev/null || true)}"
+export GIT_COMMITTER_NAME="${GIT_COMMITTER_NAME:-$(git config --global user.name 2> /dev/null || true)}"
+export GIT_COMMITTER_EMAIL="${GIT_COMMITTER_EMAIL:-$(git config --global user.email 2> /dev/null || true)}"
+COMPOSE_PROJECT_NAME="$(printf '%s' "$ENV_NAME" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9_-' '-')"
+export COMPOSE_PROJECT_NAME
+
+ENV_DIR="$REPO_ROOT/runtimes/$ENV_NAME"
+if [ ! -d "$ENV_DIR" ]; then
+  echo "error: env not found: $ENV_DIR" >&2
+  echo "available envs:" >&2
+  list_envs >&2 || true
+  exit 1
+fi
+mkdir -p "$ENV_DIR/config"
+
+COMPOSE_YAML="$REPO_ROOT/shared/env/compose.yaml"
+if [ -f "$ENV_DIR/env/compose.override.yaml" ]; then
+  COMPOSE_OVERRIDE="$ENV_DIR/env/compose.override.yaml"
+else
+  COMPOSE_OVERRIDE=""
+fi
+
+docker_compose() {
+  if [ -n "$COMPOSE_OVERRIDE" ]; then
+    docker compose -f "$COMPOSE_YAML" -f "$COMPOSE_OVERRIDE" "$@"
+  else
+    docker compose -f "$COMPOSE_YAML" "$@"
+  fi
+}
+
+# NOTE: up前処理は各functionに閉じ込める（main直書きを増やさない）
+fail() {
+  echo "error: $1" >&2
+  [ "${OWNER:-0}" = "1" ] && rm -rf "$LOCK_DIR"
+  exit 1
+}
+
+# NOTE: dockerがroot所有で作るため先作り→EXIT時削除
+setup_work_dirs() {
+  TARGET_DIR="$REPO_DIR/$ENV_NAME"
+  [ -d "$TARGET_DIR" ] || fail "target dir not found: $TARGET_DIR"
+  CONFIG_DIR="$TARGET_DIR/.pi"
+  if [ -e "$CONFIG_DIR" ] && [ ! -d "$CONFIG_DIR" ]; then
+    fail "$CONFIG_DIR exists and is not a directory"
+  fi
+  if [ ! -e "$CONFIG_DIR" ]; then
+    mkdir -p "$CONFIG_DIR"
+    CREATED_CONFIG_DIR=1
+  else
+    CREATED_CONFIG_DIR=0
+  fi
+}
+
+ensure_sessions_dir() {
+  mkdir -p "${HOME}/.agent-runtimes/sessions"
+}
+
+ensure_skills_dir() {
+  # NOTE: 欠落時は自動clone（instructionsと同形）
+  if [ ! -d "$REPO_ROOT/skills" ]; then
+    echo "cloning agent-skills..." >&2
+    git clone https://github.com/shoohein/agent-skills.git "$REPO_ROOT/skills" >&2 ||
+      fail "failed to clone agent-skills"
+    # NOTE: 取った版を表示（再現性のため）
+    _rev="$(git -C "$REPO_ROOT/skills" rev-parse --short HEAD 2> /dev/null || echo unknown)"
+    echo "cloned agent-skills ($_rev)" >&2
+  fi
+}
+
+ensure_precommit_cache_dir() {
+  # NOTE: hook環境（~/.cache/pre-commit）の永続化。無ければ再起動たびに再取得
+  mkdir -p "${HOME}/.agent-runtimes/pre-commit-cache"
+}
+
+ensure_instructions() {
+  # NOTE: 欠落時は自動clone（bind元欠落でdockerがroot所有dirを作るため）
+  if [ ! -d "$REPO_ROOT/instructions" ]; then
+    echo "cloning agent-instructions..." >&2
+    git clone https://github.com/shoohein/agent-instructions.git "$REPO_ROOT/instructions" >&2 ||
+      fail "failed to clone agent-instructions"
+    # NOTE: 取った版を表示（再現性のため）
+    _rev="$(git -C "$REPO_ROOT/instructions" rev-parse --short HEAD 2> /dev/null || echo unknown)"
+    echo "cloned agent-instructions ($_rev)" >&2
+  fi
+}
+
+ensure_auth_files() {
+  # NOTE: コンテナ内login用に空作成（host piとは別物）
+  if [ ! -e "${HOME}/.agent-runtimes/auth.json" ]; then
+    printf '{}\n' > "${HOME}/.agent-runtimes/auth.json"
+  fi
+  if [ ! -e "${HOME}/.agent-runtimes/trust.json" ]; then
+    printf '{}\n' > "${HOME}/.agent-runtimes/trust.json"
+  fi
+}
+
+ensure_npm_volume() {
+  # NOTE: external:true のため事前作成（存在すれば何もしない）
+  docker volume create agent-npm > /dev/null
+}
+
+build_append_flags() {
+  # NOTE: 追加system promptはappend-system.list管理（順序＝結合順）
+  APPEND_FLAGS=""
+  APPEND_LIST="$REPO_ROOT/shared/pi/append-system.list"
+  if [ -f "$APPEND_LIST" ]; then
+    while IFS= read -r _line || [ -n "$_line" ]; do
+      case "$_line" in '' | \#*) continue ;; esac
+      [ -f "$REPO_ROOT/instructions/$_line" ] ||
+        fail "append-system file not found: instructions/$_line"
+      APPEND_FLAGS="$APPEND_FLAGS --append-system-prompt /opt/instructions/$_line"
+    done < "$APPEND_LIST"
+  fi
+}
+
+SAFE="$(printf '%s' "$ENV_NAME" | tr '/:' '__')"
+LOCK_DIR="${TMPDIR:-/tmp}/run-agent-$SAFE.lock"
+
+# --- down ---
+if [ "$OP" = "down" ]; then
+  if [ -f "$LOCK_DIR/pid" ] && [ -n "$(cat "$LOCK_DIR/pid")" ] &&
+    kill -0 "$(cat "$LOCK_DIR/pid")" 2> /dev/null; then
+    echo "error: 起動処理中のため down を拒否する" >&2
+    exit 1
+  fi
+  docker_compose down
+  exit 0
+fi
+
+# --- up: owner election ---
+OWNER=0
+if [ -z "$(docker_compose ps -q agent 2> /dev/null)" ]; then
+  if [ -f "$LOCK_DIR/pid" ] && { [ -z "$(cat "$LOCK_DIR/pid")" ] ||
+    ! kill -0 "$(cat "$LOCK_DIR/pid")" 2> /dev/null; }; then
+    rm -rf "$LOCK_DIR"
+  fi
+  if mkdir "$LOCK_DIR" 2> /dev/null; then
+    echo "$$" > "$LOCK_DIR/pid"
+    OWNER=1
+  else
+    i=0
+    while [ -z "$(docker_compose ps -q agent 2> /dev/null)" ]; do
+      i=$((i + 1))
+      if [ "$i" -ge 120 ]; then
+        echo "error: 起動待ちがタイムアウトした" >&2
+        exit 1
+      fi
+      sleep 1
+    done
+  fi
+fi
+
+setup_work_dirs
+ensure_sessions_dir
+ensure_precommit_cache_dir
+ensure_skills_dir
+ensure_instructions
+ensure_auth_files
+ensure_npm_volume
+build_append_flags
+
+# --- run ---
+if [ "$OWNER" = "1" ]; then
+  trap 'docker_compose down >/dev/null 2>&1; rm -rf "$LOCK_DIR"; if [ "${CREATED_CONFIG_DIR:-0}" = "1" ]; then rm -rf "$CONFIG_DIR"; fi' EXIT
+else
+  trap 'if [ "${CREATED_CONFIG_DIR:-0}" = "1" ]; then rm -rf "$CONFIG_DIR"; fi' EXIT
+fi
+
+if [ -t 0 ] && [ -t 1 ]; then
+  TTY_FLAG="-it"
+else
+  TTY_FLAG="-T"
+fi
+
+# NOTE: BASE_IMAGE is passed only when AGENT_BASE_IMAGE is set,
+# so the Dockerfile default applies otherwise
+if [ -n "${AGENT_BASE_IMAGE:-}" ]; then
+  if [ -n "$BUILD_FLAG" ] || ! docker image inspect "agents/$ENV_NAME" > /dev/null 2>&1; then
+    docker_compose build --build-arg "BASE_IMAGE=$AGENT_BASE_IMAGE"
+  fi
+  docker_compose up -d
+else
+  # shellcheck disable=SC2086
+  docker_compose up -d $BUILD_FLAG
+fi
+# shellcheck disable=SC2086
+docker_compose exec $TTY_FLAG agent pi $APPEND_FLAGS "$@"
