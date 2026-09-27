@@ -2,3 +2,6 @@ skills/
 instructions/
 .pi/
 tmp/
+# 一時ファイル（wipブランチでのみ管理）
+/MEMORY.md
+/TASKS.md
