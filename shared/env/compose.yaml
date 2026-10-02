@@ -57,6 +57,10 @@ services:
       - type: bind
         source: ${HOME}/.agent-runtimes/pre-commit-cache
         target: /home/agent/.cache/pre-commit
+      # NOTE: pi-lens取得ツール等の永続化（無ければ再起動たびに再取得）
+      - type: bind
+        source: ${HOME}/.agent-runtimes/pi-lens
+        target: /home/agent/.pi-lens
       - type: bind
         source: ${SSH_AUTH_SOCK:-/dev/null}
         target: /ssh-agent

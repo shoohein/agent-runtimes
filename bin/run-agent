@@ -157,6 +157,11 @@ ensure_precommit_cache_dir() {
   mkdir -p "${HOME}/.agent-runtimes/pre-commit-cache"
 }
 
+ensure_pilens_dir() {
+  # NOTE: pi-lens取得ツール等（~/.pi-lens）の永続化。無ければ再起動たびに再取得
+  mkdir -p "${HOME}/.agent-runtimes/pi-lens"
+}
+
 ensure_instructions() {
   # NOTE: 欠落時は自動clone（bind元欠落でdockerがroot所有dirを作るため）
   if [ ! -d "$REPO_ROOT/instructions" ]; then
@@ -238,6 +243,7 @@ fi
 setup_work_dirs
 ensure_sessions_dir
 ensure_precommit_cache_dir
+ensure_pilens_dir
 ensure_skills_dir
 ensure_instructions
 ensure_auth_files
