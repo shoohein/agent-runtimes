@@ -80,6 +80,8 @@ export ENV_NAME
 
 # --- environment (all overridable from the outside) ---
 export REPO_DIR="${REPO_DIR:-$HOME}"
+export AGENT_UID="${AGENT_UID:-$(id -u)}"
+export AGENT_GID="${AGENT_GID:-$(id -g)}"
 export GIT_AUTHOR_NAME="${GIT_AUTHOR_NAME:-$(git config --global user.name 2> /dev/null || true)}"
 export GIT_AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-$(git config --global user.email 2> /dev/null || true)}"
 export GIT_COMMITTER_NAME="${GIT_COMMITTER_NAME:-$(git config --global user.name 2> /dev/null || true)}"

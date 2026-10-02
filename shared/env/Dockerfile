@@ -4,14 +4,18 @@ ARG BASE_IMAGE=node:24-trixie-slim
 ARG PI_VERSION=latest
 FROM ${BASE_IMAGE}
 
+ARG AGENT_UID=1000
+ARG AGENT_GID=1000
+
 USER root
 RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 PUPPETEER_SKIP_DOWNLOAD=1 \
     npm install -g @earendil-works/pi-coding-agent@${PI_VERSION} --omit=dev --ignore-scripts --no-audit --no-fund \
     && npm cache clean --force \
     && rm -rf /root/.npm
 
-RUN useradd -m -d /home/agent -s /bin/bash agent
-
+RUN groupadd -o --gid "$AGENT_GID" agent \
+  && useradd -o --uid "$AGENT_UID" --gid "$AGENT_GID" \
+  --create-home --home-dir /home/agent --shell /bin/bash agent
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 ENV UV_TOOL_DIR=/opt/uv-tools
 ENV UV_TOOL_BIN_DIR=/usr/local/bin

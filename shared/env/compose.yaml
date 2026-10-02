@@ -3,6 +3,9 @@ services:
     image: agents/${ENV_NAME}
     build:
       context: .
+      args:
+        AGENT_UID: ${AGENT_UID:-1000}
+        AGENT_GID: ${AGENT_GID:-1000}
     working_dir: /ws/${ENV_NAME}
     environment:
       TZ: ${TZ:-Asia/Tokyo}
