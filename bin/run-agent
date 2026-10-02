@@ -162,6 +162,11 @@ ensure_pilens_dir() {
   mkdir -p "${HOME}/.agent-runtimes/pi-lens"
 }
 
+ensure_jiti_cache_dir() {
+  # NOTE: jiti変換キャッシュ（/tmp/jiti）の永続化。無ければ再起動たびに再transpile約15秒
+  mkdir -p "${HOME}/.agent-runtimes/jiti-cache"
+}
+
 ensure_instructions() {
   # NOTE: 欠落時は自動clone（bind元欠落でdockerがroot所有dirを作るため）
   if [ ! -d "$REPO_ROOT/instructions" ]; then
@@ -244,6 +249,7 @@ setup_work_dirs
 ensure_sessions_dir
 ensure_precommit_cache_dir
 ensure_pilens_dir
+ensure_jiti_cache_dir
 ensure_skills_dir
 ensure_instructions
 ensure_auth_files

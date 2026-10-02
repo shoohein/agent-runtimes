@@ -61,6 +61,10 @@ services:
       - type: bind
         source: ${HOME}/.agent-runtimes/pi-lens
         target: /home/agent/.pi-lens
+      # NOTE: jiti変換キャッシュの永続化（無ければ再起動たびに再transpile約15秒）
+      - type: bind
+        source: ${HOME}/.agent-runtimes/jiti-cache
+        target: /tmp/jiti
       - type: bind
         source: ${SSH_AUTH_SOCK:-/dev/null}
         target: /ssh-agent
