@@ -12,6 +12,10 @@ RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 PUPPETEER_SKIP_DOWNLOAD=1 \
     npm install -g @earendil-works/pi-coding-agent@${PI_VERSION} --omit=dev --ignore-scripts --no-audit --no-fund \
     && npm cache clean --force \
     && rm -rf /root/.npm
+# NOTE: pi-memoryのmemory_search用検索エンジン。prebuiltバイナリ取得にinstall scriptが必要なためpi本体と分離する
+RUN npm install -g @tobilu/qmd --omit=dev --no-audit --no-fund \
+    && npm cache clean --force \
+    && rm -rf /root/.npm
 
 RUN groupadd -o --gid "$AGENT_GID" agent \
   && useradd -o --uid "$AGENT_UID" --gid "$AGENT_GID" \

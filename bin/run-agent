@@ -167,6 +167,12 @@ ensure_jiti_cache_dir() {
   mkdir -p "${HOME}/.agent-runtimes/jiti-cache"
 }
 
+ensure_qmd_dirs() {
+  # NOTE: qmdのmodels（全env共有）とindex・collection定義（env別）。無ければ初回DL・再indexが発生
+  mkdir -p "${HOME}/.agent-runtimes/qmd/models"
+  mkdir -p "${HOME}/.agent-runtimes/qmd/${ENV_NAME}"
+}
+
 ensure_memory_dir() {
   # NOTE: pi-memoryの保存先。env別（並行稼働の混線・同時書込競合を避けるため共有しない）
   MEMORY_DIR="${HOME}/.agent-runtimes/memory/${ENV_NAME}"
@@ -263,6 +269,7 @@ ensure_precommit_cache_dir
 ensure_pilens_dir
 ensure_jiti_cache_dir
 ensure_memory_dir
+ensure_qmd_dirs
 ensure_skills_dir
 ensure_instructions
 ensure_auth_files
