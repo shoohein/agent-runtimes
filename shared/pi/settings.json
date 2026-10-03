@@ -3,7 +3,8 @@
     "npm:pi-web-access",
     "npm:@gotgenes/pi-permission-system",
     "npm:pi-lens",
-    "npm:pi-subagents"
+    "npm:pi-subagents",
+    "npm:pi-memory"
   ],
   "lastChangelogVersion": "1.0.0",
   "theme": "dark",
