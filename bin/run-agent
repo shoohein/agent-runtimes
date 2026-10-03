@@ -167,6 +167,18 @@ ensure_jiti_cache_dir() {
   mkdir -p "${HOME}/.agent-runtimes/jiti-cache"
 }
 
+ensure_memory_dir() {
+  # NOTE: pi-memoryの保存先。env別（並行稼働の混線・同時書込競合を避けるため共有しない）
+  MEMORY_DIR="${HOME}/.agent-runtimes/memory/${ENV_NAME}"
+  mkdir -p "$MEMORY_DIR"
+  if [ ! -e "$MEMORY_DIR/MEMORY.md" ]; then
+    cat > "$MEMORY_DIR/MEMORY.md" << 'EOF'
+# MEMORY.md — このenv固有の学習メモ
+# 運用: 全env共通の安定方針は instructions へPRし、ここにはenv固有の事実・教訓のみ書く。
+EOF
+  fi
+}
+
 ensure_instructions() {
   # NOTE: 欠落時は自動clone（bind元欠落でdockerがroot所有dirを作るため）
   if [ ! -d "$REPO_ROOT/instructions" ]; then
@@ -250,6 +262,7 @@ ensure_sessions_dir
 ensure_precommit_cache_dir
 ensure_pilens_dir
 ensure_jiti_cache_dir
+ensure_memory_dir
 ensure_skills_dir
 ensure_instructions
 ensure_auth_files

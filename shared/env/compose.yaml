@@ -53,6 +53,10 @@ services:
       - type: bind
         source: ${HOME}/.agent-runtimes/sessions
         target: /home/agent/.pi/agent/sessions
+      # NOTE: pi-memoryの保存先。env別（並行稼働の混線・同時書込競合を避けるため共有しない）
+      - type: bind
+        source: ${HOME}/.agent-runtimes/memory/${ENV_NAME}
+        target: /home/agent/.pi/agent/memory
       # NOTE: pre-commit hook環境の永続化（無ければ再起動たびに再取得）
       - type: bind
         source: ${HOME}/.agent-runtimes/pre-commit-cache
